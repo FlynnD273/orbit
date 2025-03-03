@@ -1,3 +1,3 @@
-# Pebble Watchface
+# Orbit
 
-A custom watchface made from the example.
+A custom watchface made for the Pebble smartwatches.
