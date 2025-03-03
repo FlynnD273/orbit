@@ -53,7 +53,7 @@ static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
   int min_cx = cos_lookup(angle) * 20 / TRIG_MAX_RATIO + hour_cx;
   int min_cy = sin_lookup(angle) * 20 / TRIG_MAX_RATIO + hour_cy;
 
-  layer_set_frame(hour_layer, GRect(hour_cx - 20, hour_cy - 20, 42, 42));
+  layer_set_frame(hour_layer, GRect(hour_cx - 21, hour_cy - 21, 44, 44));
   layer_set_frame(minute_layer, GRect(min_cx - 7, min_cy - 7, 15, 15));
 }
 
