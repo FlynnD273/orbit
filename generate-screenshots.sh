@@ -9,7 +9,7 @@ fi
 function scr() {
   rebble install --emulator "$1"
   sleep 1
-  rebble screenshot ./screenshots/"$1".png --no-correction
+  rebble screenshot ./screenshots/"$1".png
   rebble kill
 }
 
