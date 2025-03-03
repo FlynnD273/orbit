@@ -59,12 +59,14 @@ static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
 
 static void background_update_proc(Layer *layer, GContext *ctx) {
   GRect bounds = layer_get_frame(layer);
-  graphics_context_set_stroke_color(
-      ctx, PBL_IF_COLOR_ELSE(GColorDarkGray, GColorWhite));
-  graphics_context_set_stroke_width(ctx, 2);
+  graphics_context_set_compositing_mode(ctx, GCompOpSet);
   graphics_draw_bitmap_in_rect(
       ctx, background_bitmap,
       GRect(bounds.size.w / 2 - 12, bounds.size.h / 2 - 12, 24, 24));
+
+  graphics_context_set_stroke_color(
+      ctx, PBL_IF_COLOR_ELSE(GColorDarkGray, GColorWhite));
+  graphics_context_set_stroke_width(ctx, 2);
   graphics_draw_arc(
       ctx, GRect(bounds.size.w / 2 - 41, bounds.size.h / 2 - 41, 83, 83),
       GOvalScaleModeFitCircle, TRIG_MAX_ANGLE * (100 - batt_percent) / 100,
@@ -94,6 +96,7 @@ static void hour_update_proc(Layer *layer, GContext *ctx) {
       ctx, GRect(bounds.size.w / 2 - 20, bounds.size.h / 2 - 20, 40, 40),
       GOvalScaleModeFitCircle, 0, TRIG_MAX_ANGLE);
 
+  graphics_context_set_compositing_mode(ctx, GCompOpSet);
   graphics_draw_bitmap_in_rect(ctx, hour_bitmap, bmap_bounds);
 }
 
@@ -107,6 +110,7 @@ static void minute_update_proc(Layer *layer, GContext *ctx) {
   graphics_draw_arc(ctx, GRect(1, 1, bounds.size.w - 2, bounds.size.h - 2),
                     GOvalScaleModeFitCircle, 0, TRIG_MAX_ANGLE);
 
+  graphics_context_set_compositing_mode(ctx, GCompOpSet);
   graphics_draw_bitmap_in_rect(ctx, minute_bitmap, bmap_bounds);
 }
 
