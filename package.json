@@ -9,7 +9,7 @@
   "dependencies": {},
   "pebble": {
     "displayName": "Orbit",
-    "uuid": "686993c7-2f57-47cb-b34d-83b4b259c908",
+    "uuid": "a5b7c8f1-9889-4cbe-92ee-6f31b2b0a126",
     "sdkVersion": "3",
     "enableMultiJS": false,
     "watchapp": {
