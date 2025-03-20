@@ -1,117 +1,143 @@
 #include <pebble.h>
 
+#define SUN_RADIUS 12
+#define EARTH_ORBIT_RADIUS 41
+#define EARTH_RADIUS 7
+#define MOON_ORBIT_RADIUS 20
+#define MOON_RADIUS 5
+#define RAD_TO_DIA(rad) (rad * 2 + 1)
+
 static Window *s_main_window;
 
 static Layer *window_layer;
-static Layer *background_layer;
-static Layer *minute_layer;
-static Layer *hour_layer;
+static Layer *s_layer;
 
 static GBitmap *hour_bitmap = NULL;
 static GBitmap *minute_bitmap = NULL;
 static GBitmap *background_bitmap = NULL;
 static GRect window_frame;
 static int batt_percent;
-
-/**
- * Unload a bitmap and layer.
- */
-static void unload_layer(Layer **layer, GBitmap **bitmap) {
-  if (*layer) {
-    layer_destroy(*layer);
-    layer = NULL;
-  }
-  if (*bitmap) {
-    gbitmap_destroy(*bitmap);
-    bitmap = NULL;
-  }
-}
+static int hour, min;
 
 /**
  * Called when the battery level changes.
  */
 static void handle_battery(BatteryChargeState charge_state) {
   batt_percent = charge_state.charge_percent;
-  layer_mark_dirty(background_layer);
+  layer_mark_dirty(s_layer);
 }
 
 /**
  * Redraw the time UI elements
  */
 static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
-  int hour = tick_time->tm_hour % 12;
-  int min = tick_time->tm_min;
+  hour = tick_time->tm_hour % 12;
+  min = tick_time->tm_min;
+  layer_mark_dirty(s_layer);
+}
 
-  int angle = TRIG_MAX_ANGLE * hour / 12 + TRIG_MAX_ANGLE * min / 12 / 60 +
-              TRIG_MAX_ANGLE * 3 / 4;
-  int hour_cx =
-      cos_lookup(angle) * 41 / TRIG_MAX_RATIO + window_frame.size.w / 2;
-  int hour_cy =
-      sin_lookup(angle) * 41 / TRIG_MAX_RATIO + window_frame.size.h / 2;
+static void byte_set_bit(uint8_t *byte, uint8_t bit, uint8_t value) {
+  *byte ^= (-value ^ *byte) & (1 << bit);
+}
 
-  angle = TRIG_MAX_ANGLE * min / 60 + TRIG_MAX_ANGLE * 3 / 4;
-  int min_cx = cos_lookup(angle) * 20 / TRIG_MAX_RATIO + hour_cx;
-  int min_cy = sin_lookup(angle) * 20 / TRIG_MAX_RATIO + hour_cy;
-
-  layer_set_frame(hour_layer, GRect(hour_cx - 21, hour_cy - 21, 44, 44));
-  layer_set_frame(minute_layer, GRect(min_cx - 7, min_cy - 7, 15, 15));
+static void set_pixel_color(GBitmapDataRowInfo info, GPoint point,
+                            uint8_t color) {
+  uint8_t byte = point.x / 8;
+  uint8_t bit = point.x % 8;
+  byte_set_bit(&info.data[byte], bit, color);
 }
 
 static void background_update_proc(Layer *layer, GContext *ctx) {
   GRect bounds = layer_get_frame(layer);
-  graphics_context_set_compositing_mode(ctx, GCompOpSet);
-  graphics_draw_bitmap_in_rect(
-      ctx, background_bitmap,
-      GRect(bounds.size.w / 2 - 12, bounds.size.h / 2 - 12, 24, 24));
 
   graphics_context_set_stroke_color(
       ctx, PBL_IF_COLOR_ELSE(GColorDarkGray, GColorWhite));
   graphics_context_set_stroke_width(ctx, 2);
   graphics_draw_arc(
-      ctx, GRect(bounds.size.w / 2 - 41, bounds.size.h / 2 - 41, 83, 83),
+      ctx,
+      GRect(bounds.size.w / 2 - EARTH_ORBIT_RADIUS,
+            bounds.size.h / 2 - EARTH_ORBIT_RADIUS,
+            RAD_TO_DIA(EARTH_ORBIT_RADIUS), RAD_TO_DIA(EARTH_ORBIT_RADIUS)),
       GOvalScaleModeFitCircle, TRIG_MAX_ANGLE * (100 - batt_percent) / 100,
       TRIG_MAX_ANGLE);
-}
 
-static void hour_update_proc(Layer *layer, GContext *ctx) {
-  GRect bounds = layer_get_frame(layer);
-  GRect bmap_bounds =
-      GRect(bounds.size.w / 2 - 7, bounds.size.h / 2 - 7, 15, 15);
+  int angle = TRIG_MAX_ANGLE * hour / 12 + TRIG_MAX_ANGLE * min / 12 / 60 +
+              TRIG_MAX_ANGLE * 3 / 4;
+  int hour_cx = cos_lookup(angle) * EARTH_ORBIT_RADIUS / TRIG_MAX_RATIO +
+                window_frame.size.w / 2;
+  int hour_cy = sin_lookup(angle) * EARTH_ORBIT_RADIUS / TRIG_MAX_RATIO +
+                window_frame.size.h / 2;
 
+  angle = TRIG_MAX_ANGLE * min / 60 + TRIG_MAX_ANGLE * 3 / 4;
+  int min_cx = cos_lookup(angle) * MOON_ORBIT_RADIUS / TRIG_MAX_RATIO + hour_cx;
+  int min_cy = sin_lookup(angle) * MOON_ORBIT_RADIUS / TRIG_MAX_RATIO + hour_cy;
+
+  // Moon orbit outline
   graphics_context_set_stroke_color(ctx, GColorBlack);
   graphics_context_set_stroke_width(ctx, 6);
-  graphics_draw_arc(ctx, GRect(4, 4, bounds.size.w - 4, bounds.size.h - 4),
-                    GOvalScaleModeFitCircle, 0, TRIG_MAX_ANGLE);
+  graphics_draw_arc(
+      ctx,
+      GRect(hour_cx - MOON_ORBIT_RADIUS, hour_cy - MOON_ORBIT_RADIUS,
+            RAD_TO_DIA(MOON_ORBIT_RADIUS), RAD_TO_DIA(MOON_ORBIT_RADIUS)),
+      GOvalScaleModeFitCircle, 0, TRIG_MAX_ANGLE);
 
-  graphics_context_set_stroke_width(ctx, 2);
-  graphics_draw_arc(ctx,
-                    GRect(bmap_bounds.origin.x - 2, bmap_bounds.origin.y - 2,
-                          bmap_bounds.size.w + 4, bmap_bounds.size.h + 4),
-                    GOvalScaleModeFitCircle, 0, TRIG_MAX_ANGLE);
-
+  // Moon orbit
   graphics_context_set_stroke_color(
       ctx, PBL_IF_COLOR_ELSE(GColorDarkGray, GColorWhite));
   graphics_context_set_stroke_width(ctx, 2);
   graphics_draw_arc(
-      ctx, GRect(bounds.size.w / 2 - 20, bounds.size.h / 2 - 20, 40, 40),
+      ctx,
+      GRect(hour_cx - MOON_ORBIT_RADIUS, hour_cy - MOON_ORBIT_RADIUS,
+            RAD_TO_DIA(MOON_ORBIT_RADIUS), RAD_TO_DIA(MOON_ORBIT_RADIUS)),
       GOvalScaleModeFitCircle, 0, TRIG_MAX_ANGLE);
 
-  graphics_context_set_compositing_mode(ctx, GCompOpSet);
-  graphics_draw_bitmap_in_rect(ctx, hour_bitmap, bmap_bounds);
-}
-
-static void minute_update_proc(Layer *layer, GContext *ctx) {
-  GRect bounds = layer_get_frame(layer);
-  GRect bmap_bounds =
-      GRect(bounds.size.w / 2 - 5, bounds.size.h / 2 - 5, 11, 11);
-
+  // Earth outline
   graphics_context_set_stroke_color(ctx, GColorBlack);
-  graphics_context_set_stroke_width(ctx, 4);
-  graphics_draw_arc(ctx, GRect(1, 1, bounds.size.w - 2, bounds.size.h - 2),
+  graphics_context_set_stroke_width(ctx, 5);
+  graphics_draw_arc(ctx,
+                    GRect(hour_cx - EARTH_RADIUS, hour_cy - EARTH_RADIUS,
+                          RAD_TO_DIA(EARTH_RADIUS), RAD_TO_DIA(EARTH_RADIUS)),
                     GOvalScaleModeFitCircle, 0, TRIG_MAX_ANGLE);
 
+  // Moon outline
+  graphics_draw_arc(ctx,
+                    GRect(min_cx - MOON_RADIUS, min_cy - MOON_RADIUS,
+                          RAD_TO_DIA(MOON_RADIUS), RAD_TO_DIA(MOON_RADIUS)),
+                    GOvalScaleModeFitCircle, 0, TRIG_MAX_ANGLE);
+
+#ifdef PBL_BW
+  // Dither
+  GBitmap *fb = graphics_capture_frame_buffer(ctx);
+  // Iterate over all rows
+  for (int y = 0; y < bounds.size.h; y++) {
+    // Get this row's range and data
+    GBitmapDataRowInfo info = gbitmap_get_data_row_info(fb, y);
+
+    // Iterate over all visible columns
+    for (int x = info.min_x; x <= info.max_x; x++) {
+      if ((x + y) % 2) {
+        set_pixel_color(info, GPoint(x, y), 0);
+      }
+    }
+  }
+  graphics_release_frame_buffer(ctx, fb);
+#endif
+
   graphics_context_set_compositing_mode(ctx, GCompOpSet);
-  graphics_draw_bitmap_in_rect(ctx, minute_bitmap, bmap_bounds);
+
+  // Earth
+  graphics_draw_bitmap_in_rect(
+      ctx, hour_bitmap,
+      GRect(hour_cx - EARTH_RADIUS, hour_cy - EARTH_RADIUS,
+            RAD_TO_DIA(EARTH_RADIUS), RAD_TO_DIA(EARTH_RADIUS)));
+  graphics_draw_bitmap_in_rect(ctx, minute_bitmap,
+                               GRect(min_cx - MOON_RADIUS, min_cy - MOON_RADIUS,
+                                     RAD_TO_DIA(MOON_RADIUS),
+                                     RAD_TO_DIA(MOON_RADIUS)));
+  graphics_draw_bitmap_in_rect(
+      ctx, background_bitmap,
+      GRect(bounds.size.w / 2 - SUN_RADIUS, bounds.size.h / 2 - SUN_RADIUS,
+            RAD_TO_DIA(SUN_RADIUS), RAD_TO_DIA(SUN_RADIUS)));
 }
 
 static void main_window_load(Window *window) {
@@ -122,18 +148,10 @@ static void main_window_load(Window *window) {
   hour_bitmap = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_EARTH);
   minute_bitmap = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_MOON);
 
-  background_layer = layer_create(window_frame);
-  layer_set_update_proc(background_layer, background_update_proc);
+  s_layer = layer_create(window_frame);
+  layer_set_update_proc(s_layer, background_update_proc);
 
-  hour_layer = layer_create(window_frame);
-  layer_set_update_proc(hour_layer, hour_update_proc);
-
-  minute_layer = layer_create(window_frame);
-  layer_set_update_proc(minute_layer, minute_update_proc);
-
-  layer_add_child(window_layer, background_layer);
-  layer_add_child(window_layer, hour_layer);
-  layer_add_child(window_layer, minute_layer);
+  layer_add_child(window_layer, s_layer);
 
   tick_timer_service_subscribe(MINUTE_UNIT, handle_minute_tick);
   battery_state_service_subscribe(handle_battery);
@@ -151,9 +169,10 @@ static void main_window_load(Window *window) {
 static void main_window_unload(Window *window) {
   battery_state_service_unsubscribe();
   tick_timer_service_unsubscribe();
-  unload_layer(&minute_layer, &minute_bitmap);
-  unload_layer(&hour_layer, &hour_bitmap);
-  unload_layer(&background_layer, &background_bitmap);
+  layer_destroy(s_layer);
+  gbitmap_destroy(background_bitmap);
+  gbitmap_destroy(hour_bitmap);
+  gbitmap_destroy(minute_bitmap);
 }
 
 static void init() {
