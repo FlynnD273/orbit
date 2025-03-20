@@ -1,9 +1,10 @@
 #include <pebble.h>
 
+static int earth_orbit_radius;
+static int moon_orbit_radius;
+
 #define SUN_RADIUS 12
-#define EARTH_ORBIT_RADIUS 41
 #define EARTH_RADIUS 7
-#define MOON_ORBIT_RADIUS 20
 #define MOON_RADIUS 5
 #define RAD_TO_DIA(rad) (rad * 2 + 1)
 
@@ -55,30 +56,30 @@ static void background_update_proc(Layer *layer, GContext *ctx) {
   graphics_context_set_stroke_width(ctx, 2);
   graphics_draw_arc(
       ctx,
-      GRect(bounds.size.w / 2 - EARTH_ORBIT_RADIUS,
-            bounds.size.h / 2 - EARTH_ORBIT_RADIUS,
-            RAD_TO_DIA(EARTH_ORBIT_RADIUS), RAD_TO_DIA(EARTH_ORBIT_RADIUS)),
+      GRect(bounds.size.w / 2 - earth_orbit_radius,
+            bounds.size.h / 2 - earth_orbit_radius,
+            RAD_TO_DIA(earth_orbit_radius), RAD_TO_DIA(earth_orbit_radius)),
       GOvalScaleModeFitCircle, TRIG_MAX_ANGLE * (100 - batt_percent) / 100,
       TRIG_MAX_ANGLE);
 
   int angle = TRIG_MAX_ANGLE * hour / 12 + TRIG_MAX_ANGLE * min / 12 / 60 +
               TRIG_MAX_ANGLE * 3 / 4;
-  int hour_cx = cos_lookup(angle) * EARTH_ORBIT_RADIUS / TRIG_MAX_RATIO +
+  int hour_cx = cos_lookup(angle) * earth_orbit_radius / TRIG_MAX_RATIO +
                 window_frame.size.w / 2;
-  int hour_cy = sin_lookup(angle) * EARTH_ORBIT_RADIUS / TRIG_MAX_RATIO +
+  int hour_cy = sin_lookup(angle) * earth_orbit_radius / TRIG_MAX_RATIO +
                 window_frame.size.h / 2;
 
   angle = TRIG_MAX_ANGLE * min / 60 + TRIG_MAX_ANGLE * 3 / 4;
-  int min_cx = cos_lookup(angle) * MOON_ORBIT_RADIUS / TRIG_MAX_RATIO + hour_cx;
-  int min_cy = sin_lookup(angle) * MOON_ORBIT_RADIUS / TRIG_MAX_RATIO + hour_cy;
+  int min_cx = cos_lookup(angle) * moon_orbit_radius / TRIG_MAX_RATIO + hour_cx;
+  int min_cy = sin_lookup(angle) * moon_orbit_radius / TRIG_MAX_RATIO + hour_cy;
 
   // Moon orbit outline
   graphics_context_set_stroke_color(ctx, GColorBlack);
   graphics_context_set_stroke_width(ctx, 6);
   graphics_draw_arc(
       ctx,
-      GRect(hour_cx - MOON_ORBIT_RADIUS, hour_cy - MOON_ORBIT_RADIUS,
-            RAD_TO_DIA(MOON_ORBIT_RADIUS), RAD_TO_DIA(MOON_ORBIT_RADIUS)),
+      GRect(hour_cx - moon_orbit_radius, hour_cy - moon_orbit_radius,
+            RAD_TO_DIA(moon_orbit_radius), RAD_TO_DIA(moon_orbit_radius)),
       GOvalScaleModeFitCircle, 0, TRIG_MAX_ANGLE);
 
   // Moon orbit
@@ -87,8 +88,8 @@ static void background_update_proc(Layer *layer, GContext *ctx) {
   graphics_context_set_stroke_width(ctx, 2);
   graphics_draw_arc(
       ctx,
-      GRect(hour_cx - MOON_ORBIT_RADIUS, hour_cy - MOON_ORBIT_RADIUS,
-            RAD_TO_DIA(MOON_ORBIT_RADIUS), RAD_TO_DIA(MOON_ORBIT_RADIUS)),
+      GRect(hour_cx - moon_orbit_radius, hour_cy - moon_orbit_radius,
+            RAD_TO_DIA(moon_orbit_radius), RAD_TO_DIA(moon_orbit_radius)),
       GOvalScaleModeFitCircle, 0, TRIG_MAX_ANGLE);
 
   // Earth outline
@@ -143,6 +144,10 @@ static void background_update_proc(Layer *layer, GContext *ctx) {
 static void main_window_load(Window *window) {
   window_layer = window_get_root_layer(window);
   window_frame = layer_get_frame(window_layer);
+  int min_dim = window_frame.size.w < window_frame.size.h ? window_frame.size.w
+                                                          : window_frame.size.h;
+  earth_orbit_radius = (min_dim + RAD_TO_DIA(SUN_RADIUS)) / 4;
+  moon_orbit_radius = (min_dim + RAD_TO_DIA(EARTH_RADIUS)) / 8;
 
   background_bitmap = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_SUN);
   hour_bitmap = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_EARTH);
