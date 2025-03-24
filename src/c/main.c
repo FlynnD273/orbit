@@ -32,9 +32,11 @@ static void handle_battery(BatteryChargeState charge_state) {
  * Redraw the time UI elements
  */
 static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
-  hour = tick_time->tm_hour % 12;
-  min = tick_time->tm_min;
-  layer_mark_dirty(s_layer);
+  if (units_changed & MINUTE_UNIT) {
+    hour = tick_time->tm_hour % 12;
+    min = tick_time->tm_min;
+    layer_mark_dirty(s_layer);
+  }
 }
 
 static void byte_set_bit(uint8_t *byte, uint8_t bit, uint8_t value) {
@@ -158,9 +160,6 @@ static void main_window_load(Window *window) {
 
   layer_add_child(window_layer, s_layer);
 
-  tick_timer_service_subscribe(MINUTE_UNIT, handle_minute_tick);
-  battery_state_service_subscribe(handle_battery);
-
   // Ensures time is displayed immediately (will break if NULL tick event
   // accessed). (This is why it's a good idea to have a separate routine to
   // do the update itself.)
@@ -169,6 +168,8 @@ static void main_window_load(Window *window) {
   handle_minute_tick(current_time, MINUTE_UNIT);
 
   handle_battery(battery_state_service_peek());
+  tick_timer_service_subscribe(MINUTE_UNIT, handle_minute_tick);
+  battery_state_service_subscribe(handle_battery);
 }
 
 static void main_window_unload(Window *window) {
