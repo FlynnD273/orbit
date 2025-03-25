@@ -1,7 +1,7 @@
 {
   "name": "Orbit",
   "author": "Flynn Duniho",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "keywords": [
     "pebble-watchface"
   ],
@@ -19,7 +19,8 @@
       "aplite",
       "basalt",
       "chalk",
-      "diorite"
+      "diorite",
+      "emery"
     ],
     "resources": {
       "media": [
