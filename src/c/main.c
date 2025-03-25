@@ -39,20 +39,10 @@ static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
   }
 }
 
-static void byte_set_bit(uint8_t *byte, uint8_t bit, uint8_t value) {
-  *byte ^= (-value ^ *byte) & (1 << bit);
-}
-
-static void set_pixel_color(GBitmapDataRowInfo info, GPoint point,
-                            uint8_t color) {
-  uint8_t byte = point.x / 8;
-  uint8_t bit = point.x % 8;
-  byte_set_bit(&info.data[byte], bit, color);
-}
-
 static void background_update_proc(Layer *layer, GContext *ctx) {
   GRect bounds = layer_get_frame(layer);
 
+  // Earth orbit
   graphics_context_set_stroke_color(
       ctx, PBL_IF_COLOR_ELSE(GColorDarkGray, GColorWhite));
   graphics_context_set_stroke_width(ctx, 2);
@@ -115,12 +105,12 @@ static void background_update_proc(Layer *layer, GContext *ctx) {
   for (int y = 0; y < bounds.size.h; y++) {
     // Get this row's range and data
     GBitmapDataRowInfo info = gbitmap_get_data_row_info(fb, y);
+    uint8_t mask = (y % 2) == 0 ? 0x55 : 0xAA;
 
     // Iterate over all visible columns
-    for (int x = info.min_x; x <= info.max_x; x++) {
-      if ((x + y) % 2) {
-        set_pixel_color(info, GPoint(x, y), 0);
-      }
+    for (int x = info.min_x + (8 - (info.min_x % 8)); x <= info.max_x - 8;
+         x += 8) {
+      info.data[x / 8] &= mask;
     }
   }
   graphics_release_frame_buffer(ctx, fb);
@@ -160,9 +150,6 @@ static void main_window_load(Window *window) {
 
   layer_add_child(window_layer, s_layer);
 
-  // Ensures time is displayed immediately (will break if NULL tick event
-  // accessed). (This is why it's a good idea to have a separate routine to
-  // do the update itself.)
   time_t now = time(NULL);
   struct tm *current_time = localtime(&now);
   handle_minute_tick(current_time, MINUTE_UNIT);
