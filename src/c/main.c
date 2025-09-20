@@ -1,5 +1,13 @@
 #include <pebble.h>
 
+#define SETTINGS_KEY 1
+
+typedef struct ClaySettings {
+  bool show_ticks;
+} ClaySettings;
+
+static ClaySettings settings;
+
 static int earth_orbit_radius;
 static int moon_orbit_radius;
 
@@ -21,6 +29,16 @@ static GRect end_frame;
 static GRect curr_frame;
 static int batt_percent;
 static int hour, min;
+
+static void default_settings() { settings.show_ticks = false; }
+static void load_settings() {
+  default_settings();
+  persist_read_data(SETTINGS_KEY, &settings, sizeof(settings));
+}
+
+static void save_settings() {
+  persist_write_data(SETTINGS_KEY, &settings, sizeof(settings));
+}
 
 /**
  * Called when the battery level changes.
@@ -55,6 +73,23 @@ static void set_pixel_color(GBitmapDataRowInfo info, GPoint point,
 static void background_update_proc(Layer *layer, GContext *ctx) {
   graphics_context_set_stroke_color(
       ctx, PBL_IF_COLOR_ELSE(GColorDarkGray, GColorWhite));
+  graphics_context_set_fill_color(
+      ctx, PBL_IF_COLOR_ELSE(GColorDarkGray, GColorWhite));
+  if (settings.show_ticks) {
+    for (uint8_t i = 0; i < 12; i++) {
+      graphics_fill_circle(
+          ctx,
+          GPoint(cos_lookup(TRIG_MAX_ANGLE * i / 12) *
+                         (earth_orbit_radius + moon_orbit_radius / 2) /
+                         TRIG_MAX_RATIO +
+                     curr_frame.size.w / 2,
+                 sin_lookup(TRIG_MAX_ANGLE * i / 12) *
+                         (earth_orbit_radius + moon_orbit_radius / 2) /
+                         TRIG_MAX_RATIO +
+                     curr_frame.size.h / 2),
+          1);
+    }
+  }
   graphics_context_set_stroke_width(ctx, 2);
   graphics_draw_arc(
       ctx,
@@ -169,6 +204,17 @@ static void handle_area_did_change(void *context) {
   layer_mark_dirty(s_layer);
 }
 
+static void inbox_received_handler(DictionaryIterator *iter, void *context) {
+  bool should_reset = false;
+
+  Tuple *show_tick_t = dict_find(iter, MESSAGE_KEY_ShowTicks);
+  if (show_tick_t) {
+    settings.show_ticks = show_tick_t->value->int32 == 1;
+  }
+  save_settings();
+  layer_mark_dirty(s_layer);
+}
+
 static void main_window_load(Window *window) {
   window_layer = window_get_root_layer(window);
   GRect window_frame = layer_get_bounds(window_layer);
@@ -213,6 +259,7 @@ static void main_window_unload(Window *window) {
 }
 
 static void init() {
+  load_settings();
   s_main_window = window_create();
   window_set_background_color(s_main_window, GColorBlack);
   window_set_window_handlers(s_main_window, (WindowHandlers){
@@ -220,6 +267,8 @@ static void init() {
                                                 .unload = main_window_unload,
                                             });
   window_stack_push(s_main_window, true);
+  app_message_register_inbox_received(inbox_received_handler);
+  app_message_open(128, 128);
 }
 
 static void deinit() { window_destroy(s_main_window); }
