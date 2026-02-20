@@ -1,13 +1,10 @@
 {
 	"name": "Orbit",
 	"author": "Flynn Duniho",
-	"version": "1.9.0",
+	"version": "1.10.0",
 	"keywords": [
 		"pebble-watchface"
 	],
-	"dependencies": {
-		"pebble-clay": "^1.0.1"
-	},
 	"pebble": {
 		"capabilities": [
 			"configurable"
@@ -24,7 +21,9 @@
 			"basalt",
 			"chalk",
 			"diorite",
-			"emery"
+			"emery",
+			"flint",
+			"gabbro"
 		],
 		"messageKeys": [
 			"ShowTicks"
@@ -54,5 +53,8 @@
 				}
 			]
 		}
+	},
+	"dependencies": {
+		"@rebble/clay": "^1.0.8"
 	}
 }

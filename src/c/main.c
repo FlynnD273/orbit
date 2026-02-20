@@ -11,9 +11,16 @@ static ClaySettings settings;
 static int earth_orbit_radius;
 static int moon_orbit_radius;
 
+#if PBL_PLATFORM_GABBRO
+#define SUN_RADIUS 24
+#define EARTH_RADIUS 15
+#define MOON_RADIUS 9
+#else
 #define SUN_RADIUS 12
 #define EARTH_RADIUS 7
 #define MOON_RADIUS 5
+#endif
+
 #define RAD_TO_DIA(rad) (rad * 2 + 1)
 
 static Window *s_main_window;
@@ -205,8 +212,6 @@ static void handle_area_did_change(void *context) {
 }
 
 static void inbox_received_handler(DictionaryIterator *iter, void *context) {
-  bool should_reset = false;
-
   Tuple *show_tick_t = dict_find(iter, MESSAGE_KEY_ShowTicks);
   if (show_tick_t) {
     settings.show_ticks = show_tick_t->value->int32 == 1;
